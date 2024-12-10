@@ -108,28 +108,28 @@ bool AP_AHRS_SIM::get_relative_position_NED_origin(Vector3f &vec) const
         return false;
     }
 
-    Location loc, orgn;
+    Location loc, origin;
     if (!get_location(loc) ||
-        !get_origin(orgn)) {
+        !get_origin(origin)) {
         return false;
     }
 
-    const Vector2f diff2d = orgn.get_distance_NE(loc);
+    const Vector2f diff2d = origin.get_distance_NE(loc);
     const struct SITL::sitl_fdm &fdm = _sitl->state;
     vec = Vector3f(diff2d.x, diff2d.y,
-                   -(fdm.altitude - orgn.alt*0.01f));
+                   -(fdm.altitude - origin.alt*0.01f));
 
     return true;
 }
 
 bool AP_AHRS_SIM::get_relative_position_NE_origin(Vector2f &posNE) const
 {
-    Location loc, orgn;
+    Location loc, origin;
     if (!get_location(loc) ||
-        !get_origin(orgn)) {
+        !get_origin(origin)) {
         return false;
     }
-    posNE = orgn.get_distance_NE(loc);
+    posNE = origin.get_distance_NE(loc);
 
     return true;
 }
@@ -140,11 +140,11 @@ bool AP_AHRS_SIM::get_relative_position_D_origin(float &posD) const
         return false;
     }
     const struct SITL::sitl_fdm &fdm = _sitl->state;
-    Location orgn;
-    if (!get_origin(orgn)) {
+    Location origin;
+    if (!get_origin(origin)) {
         return false;
     }
-    posD = -(fdm.altitude - orgn.alt*0.01f);
+    posD = -(fdm.altitude - origin.alt*0.01f);
 
     return true;
 }

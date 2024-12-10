@@ -922,6 +922,50 @@ int8_t NavEKF2::getPrimaryCoreIMUIndex(void) const
     return core[primary].getIMUIndex();
 }
 
+bool NavEKF2::get_relative_position_NED_origin(Vector3f &vec) const
+{
+    Vector2f posNE;
+    float posD;
+    if (getPosNE(posNE) && getPosD(posD)) {
+        // position is valid
+        vec.x = posNE.x;
+        vec.y = posNE.y;
+        vec.z = posD;
+        return true;
+    }
+    return false;
+}
+
+bool NavEKF2::get_relative_position_NED_origin_2(Vector3f &vec) const
+{
+    Location loc, orign;
+    if (getLLH(loc) && getOriginLLH(orign)) {
+        vec = orign.get_distance_NED(loc);
+        return true;
+    }
+    return false;
+}
+
+bool NavEKF2::get_relative_position_NED_origin_3(Vector3f &vec) const
+{
+    Location loc, orign;
+    if (getLastLLH(loc) && getOriginLLH(orign)) {
+        vec = orign.get_distance_NED(loc);
+        return true;
+    }
+
+    Vector2f posNE;
+    float posD;
+    if (getPosNE(posNE) && getPosD(posD)) {
+        // position is valid
+        vec.x = posNE.x;
+        vec.y = posNE.y;
+        vec.z = posD;
+        return true;
+    }
+    return false;
+}
+
 // Write the last calculated NE position relative to the reference point (m).
 // If a calculated solution is not available, use the best available data and return false
 // If false returned, do not use for flight control
@@ -1088,6 +1132,18 @@ bool NavEKF2::getLLH(Location &loc) const
         return false;
     }
     return core[primary].getLLH(loc);
+}
+
+// Return the last calculated latitude, longitude and height in WGS-84
+// If a calculated location isn't available, return a raw GPS measurement
+// The status will return true if a calculation or raw measurement is available
+// The getFilterStatus() function provides a more detailed description of data health and must be checked if data is to be used for flight control
+bool NavEKF2::getLastLLH(Location &loc) const
+{
+    if (!core) {
+        return false;
+    }
+    return core[primary].getLastLLH(loc);
 }
 
 // Return the latitude and longitude and height used to set the NED origin for the specified instance

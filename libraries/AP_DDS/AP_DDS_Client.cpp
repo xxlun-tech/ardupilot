@@ -224,7 +224,8 @@ bool AP_DDS_Client::update_topic(sensor_msgs_msg_NavSatFix& msg, const uint8_t i
 
     update_topic(msg.header.stamp);
     static_assert(GPS_MAX_RECEIVERS <= 9, "GPS_MAX_RECEIVERS is greater than 9");
-    hal.util->snprintf(msg.header.frame_id, 2, "%u", instance);
+    // hal.util->snprintf(msg.header.frame_id, 2, "%u", instance);
+    strcpy(msg.header.frame_id, GPS_FRAME);
     msg.status.service = 0; // SERVICE_GPS
     msg.status.status = -1; // STATUS_NO_FIX
 
@@ -403,7 +404,7 @@ void AP_DDS_Client::update_topic(sensor_msgs_msg_BatteryState& msg, const uint8_
 void AP_DDS_Client::update_topic(geometry_msgs_msg_PoseStamped& msg)
 {
     update_topic(msg.header.stamp);
-    STRCPY(msg.header.frame_id, BASE_LINK_FRAME_ID);
+    strcpy(msg.header.frame_id, ODOM_FRAME);
 
     auto &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
@@ -421,7 +422,7 @@ void AP_DDS_Client::update_topic(geometry_msgs_msg_PoseStamped& msg)
     // as well as invert Z
 
     Vector3f position;
-    if (ahrs.get_relative_position_NED_home(position)) {
+    if (ahrs.get_relative_position_NED_origin(position)) {
         msg.pose.position.x = position[1];
         msg.pose.position.y = position[0];
         msg.pose.position.z = -position[2];
@@ -432,13 +433,15 @@ void AP_DDS_Client::update_topic(geometry_msgs_msg_PoseStamped& msg)
     // Y - Left
     // Z - Up
     // https://www.ros.org/reps/rep-0103.html#axis-orientation
-    // As a consequence, to follow ROS REP 103, it is necessary to switch X and Y,
-    // as well as invert Z (NED to ENU conversion) as well as a 90 degree rotation in the Z axis
-    // for x to point forward
     Quaternion orientation;
     if (ahrs.get_quaternion(orientation)) {
+        /*
+           Quaternion aux(orientation[0], orientation[1], -orientation[2], -orientation[3]); //FRD to FLU transformation
+           Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
+           orientation = transformation * aux;
+           */
         Quaternion aux(orientation[0], orientation[2], orientation[1], -orientation[3]); //NED to ENU transformation
-        Quaternion transformation (sqrtF(2) * 0.5,0,0,sqrtF(2) * 0.5); // Z axis 90 degree rotation
+        Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
         orientation = aux * transformation;
         msg.pose.orientation.w = orientation[0];
         msg.pose.orientation.x = orientation[1];
@@ -454,27 +457,26 @@ void AP_DDS_Client::update_topic(geometry_msgs_msg_PoseStamped& msg)
 void AP_DDS_Client::update_topic(geometry_msgs_msg_TwistStamped& msg)
 {
     update_topic(msg.header.stamp);
-    STRCPY(msg.header.frame_id, BASE_LINK_FRAME_ID);
+    strcpy(msg.header.frame_id, BASE_LINK_FRAME_ID);
 
     auto &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
 
-    // ROS REP 103 uses the ENU convention:
-    // X - East
-    // Y - North
+    // ROS REP 103 uses the FLU convention:
+    // X - Forward 
+    // Y - Left 
     // Z - Up
     // https://www.ros.org/reps/rep-0103.html#axis-orientation
-    // AP_AHRS uses the NED convention
-    // X - North
-    // Y - East
+    // AP_AHRS uses the Local FRD convention
+    // X - Forward 
+    // Y - Right 
     // Z - Down
-    // As a consequence, to follow ROS REP 103, it is necessary to switch X and Y,
-    // as well as invert Z
     Vector3f velocity;
     if (ahrs.get_velocity_NED(velocity)) {
-        msg.twist.linear.x = velocity[1];
-        msg.twist.linear.y = velocity[0];
-        msg.twist.linear.z = -velocity[2];
+        Vector3f linear_velocity_base_link = ahrs.earth_to_body(velocity);
+        msg.twist.linear.x = linear_velocity_base_link[0];
+        msg.twist.linear.y = -linear_velocity_base_link[1];
+        msg.twist.linear.z = -linear_velocity_base_link[2];
     }
 
     // In ROS REP 103, axis orientation uses the following convention:
@@ -493,6 +495,7 @@ void AP_DDS_Client::update_topic(geometry_msgs_msg_TwistStamped& msg)
     msg.twist.angular.z = -angular_velocity[2];
 }
 #endif // AP_DDS_LOCAL_VEL_PUB_ENABLED
+
 #if AP_DDS_AIRSPEED_PUB_ENABLED
 bool AP_DDS_Client::update_topic(geometry_msgs_msg_Vector3Stamped& msg)
 {
@@ -526,7 +529,7 @@ bool AP_DDS_Client::update_topic(geometry_msgs_msg_Vector3Stamped& msg)
 void AP_DDS_Client::update_topic(geographic_msgs_msg_GeoPoseStamped& msg)
 {
     update_topic(msg.header.stamp);
-    STRCPY(msg.header.frame_id, BASE_LINK_FRAME_ID);
+    strcpy(msg.header.frame_id, BASE_LINK_FRAME_ID);
 
     auto &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
@@ -544,12 +547,13 @@ void AP_DDS_Client::update_topic(geographic_msgs_msg_GeoPoseStamped& msg)
     // X - Forward
     // Y - Left
     // Z - Up
-    // https://www.ros.org/reps/rep-0103.html#axis-orientation
-    // As a consequence, to follow ROS REP 103, it is necessary to switch X and Y,
-    // as well as invert Z (NED to ENU conversion) as well as a 90 degree rotation in the Z axis
-    // for x to point forward
     Quaternion orientation;
     if (ahrs.get_quaternion(orientation)) {
+        /*
+           Quaternion aux(orientation[0], orientation[1], -orientation[2], -orientation[3]); //FRD to FLU transformation
+           Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
+           orientation = aux * transformation;
+           */
         Quaternion aux(orientation[0], orientation[2], orientation[1], -orientation[3]); //NED to ENU transformation
         Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
         orientation = aux * transformation;
@@ -600,39 +604,47 @@ bool AP_DDS_Client::update_topic_goal(geographic_msgs_msg_GeoPointStamped& msg)
 void AP_DDS_Client::update_topic(sensor_msgs_msg_Imu& msg)
 {
     update_topic(msg.header.stamp);
-    STRCPY(msg.header.frame_id, BASE_LINK_NED_FRAME_ID);
+    strcpy(msg.header.frame_id, BASE_LINK_FRAME_ID);
 
-    auto &imu = AP::ins();
     auto &ahrs = AP::ahrs();
-
     WITH_SEMAPHORE(ahrs.get_semaphore());
 
     Quaternion orientation;
     if (ahrs.get_quaternion(orientation)) {
-        msg.orientation.x = orientation[0];
-        msg.orientation.y = orientation[1];
-        msg.orientation.z = orientation[2];
-        msg.orientation.w = orientation[3];
+        /*
+           Quaternion aux(orientation[0], orientation[1], -orientation[2], -orientation[3]); //FRD to FLU transformation
+           Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
+           orientation = aux * transformation;
+           */
+        Quaternion aux(orientation[0], orientation[2], orientation[1], -orientation[3]); //NED to ENU transformation
+        Quaternion transformation(sqrtF(2) * 0.5, 0, 0, sqrtF(2) * 0.5); // Z axis 90 degree rotation
+        orientation = aux * transformation;
+        msg.orientation.w = orientation[0];
+        msg.orientation.x = orientation[1];
+        msg.orientation.y = orientation[2];
+        msg.orientation.z = orientation[3];
     } else {
         initialize(msg.orientation);
     }
-    msg.orientation_covariance[0] = -1;
+    // msg.orientation_covariance[0] = -1;
 
-    uint8_t accel_index = ahrs.get_primary_accel_index();
-    uint8_t gyro_index = ahrs.get_primary_gyro_index();
-    const Vector3f accel_data = imu.get_accel(accel_index);
-    const Vector3f gyro_data = imu.get_gyro(gyro_index);
+    const Vector3f & accel_data = ahrs.get_accel();
+    const Vector3f & gyro_data = ahrs.get_gyro();
 
     // Populate the message fields
     msg.linear_acceleration.x = accel_data.x;
-    msg.linear_acceleration.y = accel_data.y;
-    msg.linear_acceleration.z = accel_data.z;
+    msg.linear_acceleration.y = -accel_data.y;
+    msg.linear_acceleration.z = -accel_data.z;
+    // msg.linear_acceleration_covariance[0] = 1.0;
+    // msg.linear_acceleration_covariance[4] = 1.0;
+    // msg.linear_acceleration_covariance[8] = 1.0;
 
     msg.angular_velocity.x = gyro_data.x;
-    msg.angular_velocity.y = gyro_data.y;
-    msg.angular_velocity.z = gyro_data.z;
-    msg.angular_velocity_covariance[0] = -1;
-    msg.linear_acceleration_covariance[0] = -1;
+    msg.angular_velocity.y = -gyro_data.y;
+    msg.angular_velocity.z = -gyro_data.z;
+    // msg.angular_velocity_covariance[0] = 1.0;
+    // msg.angular_velocity_covariance[4] = 1.0;
+    // msg.angular_velocity_covariance[8] = 1.0;
 }
 #endif // AP_DDS_IMU_PUB_ENABLED
 

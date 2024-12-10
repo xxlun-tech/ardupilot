@@ -169,6 +169,9 @@ public:
     // The getFilterStatus() function provides a more detailed description of data health and must be checked if data is to be used for flight control
     bool getLLH(Location &loc) const;
 
+    // Return the last calculated latitude, longitude and height in WGS-84
+    bool getLastLLH(Location &loc) const;
+
     // return the latitude and longitude and height used to set the NED origin
     // All NED positions calculated by the filter are relative to this location
     // Returns false if the origin has not been set

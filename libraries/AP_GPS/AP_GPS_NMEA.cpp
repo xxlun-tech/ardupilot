@@ -379,7 +379,7 @@ bool AP_GPS_NMEA::_term_complete()
             case _GPS_SENTENCE_THS:
                 if (_last_AGRICA_ms != 0 || _expect_agrica) {
                     // use AGRICA
-                    break;
+                    // break;
                 }
                 if (isnan(_new_gps_yaw)) {
                     // empty sentence
@@ -869,10 +869,12 @@ void AP_GPS_NMEA::send_config(void)
 
     case AP_GPS::GPS_TYPE_UNICORE_NMEA: {
         port->printf("\r\nAGRICA %.3f\r\n" \
-                     "MODE MOVINGBASE\r\n" \
+                     "MODE ROVER\r\n" \
                      "GNGGA %.3f\r\n" \
-                     "GNRMC %.3f\r\n",
-                     rate_s, rate_s, rate_s);
+                     "GNRMC %.3f\r\n" \
+                     "GPVTG %.3f\r\n" \
+                     "GPHDT %.3f\r\n",
+                     rate_s, rate_s, rate_s, rate_s, rate_s);
         if (!_have_unicore_versiona) {
             // get version information for logging if we don't have it yet
             port->printf("VERSIONA\r\n");

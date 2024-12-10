@@ -345,6 +345,42 @@ bool NavEKF3_core::getLLH(Location &loc) const
     }
 }
 
+// Return the last calculated latitude, longitude and height in WGS-84
+bool NavEKF3_core::getLastLLH(Location &loc) const
+{
+    Location origin;
+    if (getOriginLLH(origin)) {
+        float posD;
+        if (getPosD_local(posD) && PV_AidingMode != AID_NONE) {
+            // Altitude returned is an absolute altitude relative to the WGS-84 spherioid
+            loc.set_alt_cm(origin.alt - posD*100.0, Location::AltFrame::ABSOLUTE);
+            if (filterStatus.flags.horiz_pos_abs || filterStatus.flags.horiz_pos_rel) {
+                // The EKF is able to provide a position estimate
+                loc.lat = EKF_origin.lat;
+                loc.lng = EKF_origin.lng;
+                loc.offset(outputDataNew.position.x + posOffsetNED.x,
+                           outputDataNew.position.y + posOffsetNED.y);
+            } else {
+                // Return the EKF estimate but mark it as invalid
+                loc.lat = EKF_origin.lat;
+                loc.lng = EKF_origin.lng;
+                loc.offset(lastKnownPositionNE.x + posOffsetNED.x,
+                        lastKnownPositionNE.y + posOffsetNED.y);
+                loc.alt = EKF_origin.alt - lastKnownPositionD*100.0;   
+            }
+        } else {
+            // Return the last recorded positon
+            loc.lat = EKF_origin.lat;
+            loc.lng = EKF_origin.lng;
+            loc.offset(lastKnownPositionNE.x + posOffsetNED.x,
+                    lastKnownPositionNE.y + posOffsetNED.y);
+            loc.alt = EKF_origin.alt - lastKnownPositionD*100.0;
+        }
+        return true;
+    }
+    return false;
+}
+
 bool NavEKF3_core::getGPSLLH(Location &loc) const
 {
     const auto &gps = dal.gps();

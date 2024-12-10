@@ -66,6 +66,12 @@ public:
     // return -1 if no primary core selected
     int8_t getPrimaryCoreIMUIndex(void) const;
 
+    bool get_relative_position_NED_origin(Vector3f &vec) const;
+
+    bool get_relative_position_NED_origin_2(Vector3f &vec) const;
+
+    bool get_relative_position_NED_origin_3(Vector3f &vec) const;
+
     // Write the last calculated NE position relative to the reference point (m)
     // If a calculated solution is not available, use the best available data and return false
     // If false returned, do not use for flight control
@@ -140,6 +146,9 @@ public:
     // The status will return true if a calculation or raw measurement is available
     // The getFilterStatus() function provides a more detailed description of data health and must be checked if data is to be used for flight control
     bool getLLH(Location &loc) const;
+
+    // Return the last calculated latitude, longitude and height in WGS-84
+    bool getLastLLH(Location &loc) const;
 
     // Return the latitude and longitude and height used to set the NED origin
     // All NED positions calculated by the filter are relative to this location

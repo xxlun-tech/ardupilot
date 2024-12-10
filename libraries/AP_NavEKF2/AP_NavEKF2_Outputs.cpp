@@ -333,6 +333,37 @@ bool NavEKF2_core::getLLH(Location &loc) const
     }
 }
 
+// Return the last calculated latitude, longitude and height of the body frame origin in WGS-84
+// If a calculated location isn't available, return a raw GPS measurement
+// The status will return true if a calculation or raw measurement is available
+// The getFilterStatus() function provides a more detailed description of data health and must be checked if data is to be used for flight control
+bool NavEKF2_core::getLastLLH(Location &loc) const
+{
+    Location origin;
+    float posD;
+    if (getPosD(posD) && getOriginLLH(origin)) {
+        // Altitude returned is an absolute altitude relative to the WGS-84 spherioid
+        loc.set_alt_cm(origin.alt - posD*100, Location::AltFrame::ABSOLUTE);
+
+        // there are three modes of operation, absolute position (GPS fusion), relative position (optical flow fusion) and constant position (no aiding)
+        if (filterStatus.flags.horiz_pos_abs || filterStatus.flags.horiz_pos_rel) {
+            loc.lat = EKF_origin.lat;
+            loc.lng = EKF_origin.lng;
+            // correct for IMU offset (EKF calculations are at the IMU position)
+            loc.offset((outputDataNew.position.x + posOffsetNED.x), (outputDataNew.position.y + posOffsetNED.y));
+        } else {
+            // we could be in constant position mode because the vehicle has taken off without GPS, or has lost GPS
+            // in this mode we cannot use the EKF states to estimate position so will return the best available data
+            // if no GPS fix, provide last known position before entering the mode
+            // correct for IMU offset (EKF calculations are at the IMU position)
+            loc.lat = EKF_origin.lat;
+            loc.lng = EKF_origin.lng;
+            loc.offset((lastKnownPositionNE.x + posOffsetNED.x), (lastKnownPositionNE.y + posOffsetNED.y));
+        }
+        return true;
+    }
+    return false;
+}
 
 // return the horizontal speed limit in m/s set by optical flow sensor limits
 // return the scale factor to be applied to navigation velocity gains to compensate for increase in velocity noise with height when using optical flow

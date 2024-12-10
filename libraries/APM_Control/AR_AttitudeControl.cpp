@@ -18,6 +18,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AR_AttitudeControl.h"
 #include <AP_GPS/AP_GPS.h>
+// #include <GCS_MAVLink/GCS.h>
 
 // attitude control default definition
 #define AR_ATTCONTROL_STEER_ANG_P       2.00f
@@ -695,6 +696,7 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
 
     // update pid to calculate output to motors
     float output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
+    // GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "AR_AC desired turn rate 4 %f, output %f", _desired_turn_rate, output);
     output += _steer_rate_pid.get_ff();
     // constrain and return final output
     return output;

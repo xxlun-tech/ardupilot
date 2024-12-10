@@ -1704,33 +1704,13 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
         return dcm.get_relative_position_NED_origin(vec);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
-    case EKFType::TWO: {
-        Vector2f posNE;
-        float posD;
-        if (EKF2.getPosNE(posNE) && EKF2.getPosD(posD)) {
-            // position is valid
-            vec.x = posNE.x;
-            vec.y = posNE.y;
-            vec.z = posD;
-            return true;
-        }
-        return false;
-    }
+    case EKFType::TWO:
+        return EKF2.get_relative_position_NED_origin(vec);
 #endif
 
 #if HAL_NAVEKF3_AVAILABLE
-    case EKFType::THREE: {
-            Vector2f posNE;
-            float posD;
-            if (EKF3.getPosNE(posNE) && EKF3.getPosD(posD)) {
-                // position is valid
-                vec.x = posNE.x;
-                vec.y = posNE.y;
-                vec.z = posD;
-                return true;
-            }
-            return false;
-        }
+    case EKFType::THREE:
+         return EKF3.get_relative_position_NED_origin(vec);
 #endif
 
 #if AP_AHRS_SIM_ENABLED
@@ -1738,9 +1718,8 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
         return sim.get_relative_position_NED_origin(vec);
 #endif
 #if AP_AHRS_EXTERNAL_ENABLED
-    case EKFType::EXTERNAL: {
+    case EKFType::EXTERNAL:
         return external.get_relative_position_NED_origin(vec);
-    }
 #endif
     }
     // since there is no default case above, this is unreachable
